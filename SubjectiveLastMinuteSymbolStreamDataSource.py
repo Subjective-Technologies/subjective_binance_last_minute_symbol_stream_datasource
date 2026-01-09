@@ -187,7 +187,11 @@ class SubjectiveLastMinuteSymbolStreamDataSource(SubjectiveRealTimeDataSource):
         else:
             self.target_symbols = []
 
+        # Set stream label for logging
+        self._stream_label = "Binance ticker stream"
+
     def _connect_stream(self):
+        """Connect to the Binance websocket stream."""
         from binance import ThreadedWebsocketManager
 
         self._twm = ThreadedWebsocketManager(api_key=self._api_key, api_secret=self._api_secret)
@@ -195,6 +199,7 @@ class SubjectiveLastMinuteSymbolStreamDataSource(SubjectiveRealTimeDataSource):
         BBLogger.log("ThreadedWebsocketManager started successfully")
 
     def _run_stream(self):
+        """Run the websocket stream (blocking until disconnected)."""
         if not self._twm:
             raise RuntimeError("ThreadedWebsocketManager not initialized")
 
@@ -207,23 +212,9 @@ class SubjectiveLastMinuteSymbolStreamDataSource(SubjectiveRealTimeDataSource):
         self._twm.join()
 
     def _disconnect_stream(self):
+        """Disconnect from the Binance websocket stream."""
         if self._twm:
             try:
                 self._twm.stop()
             finally:
                 self._twm = None
-
-    def _start_monitoring_implementation(self):
-        """Start the websocket stream with automatic reconnection."""
-        self._run_with_reconnect(
-            connect_fn=self._connect_stream,
-            run_fn=self._run_stream,
-            disconnect_fn=self._disconnect_stream,
-            label="Binance ticker stream"
-        )
-
-    def fetch(self):
-        if self.status_callback:
-            self.status_callback(self.get_name(), "stream_started")
-        self.start_monitoring()
-        BBLogger.log(f"Stream started for {self.get_name()}")
