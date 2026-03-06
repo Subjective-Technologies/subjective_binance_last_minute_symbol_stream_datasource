@@ -24,7 +24,8 @@ class SubjectiveLastMinuteSymbolStreamDataSource(SubjectiveRealTimeDataSource):
         self.last_output_time = datetime.now()
         self.output_file_path = None  # Will hold the path to our single output file
         self.candle_data = []  # Array to hold all candle data
-        self._twm = None
+        self._ws_client = None
+        self._stream_running = False
         self._api_key = ""
         self._api_secret = ""
         self._symbols_param = ""
@@ -85,16 +86,33 @@ class SubjectiveLastMinuteSymbolStreamDataSource(SubjectiveRealTimeDataSource):
         except Exception as e:
             BBLogger.log(f"Error appending to file: {str(e)}")
 
-    def _on_tick(self, msg):
+    def _on_tick(self, *_args):
         """Callback for websocket ticker updates"""
         try:
+            msg = _args[-1] if _args else None
+
+            if isinstance(msg, str):
+                msg = json.loads(msg)
+
+            # Raw all-symbol ticker stream can emit a plain list payload.
+            if isinstance(msg, list):
+                for ticker_data in msg:
+                    self._process_ticker_data(ticker_data)
+                return
+
             # Handle the websocket message format
             if isinstance(msg, dict):
+                # Ignore subscription acknowledgements.
+                if msg.get('result') is None and 'id' in msg:
+                    return
+
                 # Check if this is the data array (multiple symbols)
                 if 'data' in msg and isinstance(msg['data'], list):
                     tickers = msg['data']
                     for ticker_data in tickers:
                         self._process_ticker_data(ticker_data)
+                elif 'data' in msg and isinstance(msg['data'], dict):
+                    self._process_ticker_data(msg['data'])
                 # Single ticker update
                 elif 's' in msg:  # 's' is the symbol field in Binance ticker
                     self._process_ticker_data(msg)
@@ -192,29 +210,40 @@ class SubjectiveLastMinuteSymbolStreamDataSource(SubjectiveRealTimeDataSource):
 
     def _connect_stream(self):
         """Connect to the Binance websocket stream."""
-        from binance import ThreadedWebsocketManager
+        try:
+            from binance.websocket.spot.websocket_stream import SpotWebsocketStreamClient
+        except ModuleNotFoundError as exc:
+            raise ModuleNotFoundError(
+                "Binance connector is not installed. Install dependency: pip install binance-connector"
+            ) from exc
 
-        self._twm = ThreadedWebsocketManager(api_key=self._api_key, api_secret=self._api_secret)
-        self._twm.start()
-        BBLogger.log("ThreadedWebsocketManager started successfully")
+        self._ws_client = SpotWebsocketStreamClient(on_message=self._on_tick)
+        self._stream_running = True
+        BBLogger.log("SpotWebsocketStreamClient started successfully")
 
     def _run_stream(self):
         """Run the websocket stream (blocking until disconnected)."""
-        if not self._twm:
-            raise RuntimeError("ThreadedWebsocketManager not initialized")
+        if not self._ws_client:
+            raise RuntimeError("SpotWebsocketStreamClient not initialized")
 
-        # Subscribe to all symbols ticker stream
-        # !ticker@arr provides all market tickers in array format
-        self._twm.start_multiplex_socket(callback=self._on_tick, streams=['!ticker@arr'])
+        if self.target_symbols:
+            for symbol in self.target_symbols:
+                self._ws_client.ticker(symbol=symbol.lower())
+            BBLogger.log(f"Subscribed to Binance ticker stream for symbols: {','.join(self.target_symbols)}")
+        else:
+            # !ticker@arr provides all market tickers in array format
+            self._ws_client.ticker()
+            BBLogger.log("Subscribed to Binance ticker stream: !ticker@arr")
 
-        BBLogger.log("Subscribed to Binance ticker stream: !ticker@arr")
         BBLogger.log("Websocket stream is now active and receiving data...")
-        self._twm.join()
+        while self._stream_running:
+            time.sleep(1)
 
     def _disconnect_stream(self):
         """Disconnect from the Binance websocket stream."""
-        if self._twm:
+        self._stream_running = False
+        if self._ws_client:
             try:
-                self._twm.stop()
+                self._ws_client.stop()
             finally:
-                self._twm = None
+                self._ws_client = None

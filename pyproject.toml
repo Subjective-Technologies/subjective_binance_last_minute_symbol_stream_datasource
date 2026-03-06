@@ -5,8 +5,7 @@ description = "Subjective data source plugin: Binance Last Minute Symbol Stream.
 requires-python = ">=3.12"
 dependencies = [
   "certifi",
-  "pymongo",
-  "sshtunnel",
+  "binance-connector>=3.12.0",
   "brainboost-rclone-oauth-package @ git+https://github.com/Subjective-Technologies/brainboost_rclone_oauth_package.git",
 ]
 
