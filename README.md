@@ -1,17 +1,3 @@
-# SubjectiveLastMinuteSymbolStreamDataSource
+# subjective_binance_last_minute_symbol_stream_datasource
 
-Subjective datasource implementation for SubjectiveLastMinuteSymbolStreamDataSource.
-
-## Usage
-
-```python
-from subjective_datasources.SubjectiveLastMinuteSymbolStreamDataSource import SubjectiveLastMinuteSymbolStreamDataSource
-
-source = SubjectiveLastMinuteSymbolStreamDataSource(params={})
-source.fetch()
-```
-
-## Parameters
-
-Use the params dictionary when constructing the datasource to provide connection and runtime values.
-Refer to get_connection_data() for required fields.
+Subjective v2 datasource for Binance-only trading pipelines. See repository README for configuration and safety constraints.

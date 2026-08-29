@@ -1,15 +1,25 @@
-﻿[project]
+[project]
 name = "subjective_binance_last_minute_symbol_stream_datasource"
 version = "0.1.0"
-description = "Subjective data source plugin: Binance Last Minute Symbol Stream."
+description = "Subjective v2 Binance trading pipeline datasource."
 requires-python = ">=3.12"
 dependencies = [
-  "certifi",
-  "binance-connector>=3.12.0",
-  "brainboost-rclone-oauth-package @ git+https://github.com/Subjective-Technologies/brainboost_rclone_oauth_package.git",
+  "subjective-abstract-data-source-package @ git+https://github.com/Subjective-Technologies/subjective-abstract-data-source-package.git",
+  "brainboost-data-source-logger-package @ git+https://github.com/Subjective-Technologies/brainboost_data_source_logger_package.git",
+  "brainboost-configuration-package @ git+https://github.com/Subjective-Technologies/brainboost_configuration_package.git",
+  "brainboost-trading-for-subjective @ git+https://github.com/Subjective-Technologies/brainboost_trading_for_subjective.git",
+  "python-binance>=1.0.19",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["SubjectiveLastMinuteSymbolStreamDataSource.py"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"icon.svg" = "icon.svg"
